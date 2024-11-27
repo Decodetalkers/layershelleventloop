@@ -34,7 +34,7 @@ pub struct IcedNewMenuSettings {
     pub direction: MenuDirection,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     AnchorChange(Anchor),
     LayerChange(Layer),
@@ -55,7 +55,7 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
 
 pub type LayershellCustomActions = LayershellCustomActionsWithInfo<()>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct LayershellCustomActionsWithIdAndInfo<INFO: Clone>(
     pub Option<IcedId>,
     pub LayershellCustomActionsWithInfo<INFO>,
@@ -70,7 +70,7 @@ impl<INFO: Clone> LayershellCustomActionsWithIdAndInfo<INFO> {
 pub type LayershellCustomActionsWithId = LayershellCustomActionsWithIdAndInfo<()>;
 
 // first one means
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct LayershellCustomActionsWithIdInner<INFO: Clone>(
     pub Option<LayerId>,                       // come from
     pub Option<LayerId>,                       // target if has one

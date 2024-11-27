@@ -111,6 +111,7 @@
 //! }
 //! ```
 //!
+pub use events::LayerOutputSetting;
 pub use events::NewLayerShellSettings;
 pub use events::NewPopUpSettings;
 pub use waycrate_xkbkeycode::keyboard;
@@ -1662,31 +1663,6 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        if state.is_with_target() && !state.init_finished {
-            let Some((_, xdg_info)) = state
-                .xdg_info_cache
-                .iter_mut()
-                .find(|(_, info)| info.zxdgoutput == *proxy)
-            else {
-                return;
-            };
-            match event {
-                zxdg_output_v1::Event::LogicalSize { width, height } => {
-                    xdg_info.logical_size = (width, height);
-                }
-                zxdg_output_v1::Event::LogicalPosition { x, y } => {
-                    xdg_info.position = (x, y);
-                }
-                zxdg_output_v1::Event::Name { name } => {
-                    xdg_info.name = name;
-                }
-                zxdg_output_v1::Event::Description { description } => {
-                    xdg_info.description = description;
-                }
-                _ => {}
-            };
-            return;
-        }
         let Some(index) = state.units.iter().position(|info| {
             info.zxdgoutput
                 .as_ref()
@@ -1694,23 +1670,34 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         }) else {
             return;
         };
+        let Some((_, xdg_info_cached)) = state
+            .xdg_info_cache
+            .iter_mut()
+            .find(|(_, info)| info.zxdgoutput == *proxy)
+        else {
+            return;
+        };
         let info = &mut state.units[index];
         let xdg_info = info.zxdgoutput.as_mut().unwrap();
         let change_type = match event {
             zxdg_output_v1::Event::LogicalSize { width, height } => {
                 xdg_info.logical_size = (width, height);
+                xdg_info_cached.logical_size = (width, height);
                 XdgInfoChangedType::Size
             }
             zxdg_output_v1::Event::LogicalPosition { x, y } => {
                 xdg_info.position = (x, y);
+                xdg_info_cached.position = (x, y);
                 XdgInfoChangedType::Position
             }
             zxdg_output_v1::Event::Name { name } => {
-                xdg_info.name = name;
+                xdg_info.name = name.clone();
+                xdg_info_cached.name = name;
                 XdgInfoChangedType::Name
             }
             zxdg_output_v1::Event::Description { description } => {
-                xdg_info.description = description;
+                xdg_info.description = description.clone();
+                xdg_info_cached.description = description;
                 XdgInfoChangedType::Description
             }
             _ => {
@@ -1859,7 +1846,6 @@ impl<T: 'static> WindowState<T> {
                 // clear binded_output_name, it is not used anymore
             }
 
-            self.xdg_info_cache.clear();
             let binded_output = output.as_ref().map(|(output, _)| output);
             let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo);
 
@@ -2429,14 +2415,12 @@ impl<T: 'static> WindowState<T> {
                                 exclusive_zone,
                                 margin,
                                 keyboard_interactivity,
-                                use_last_output,
                                 events_transparent,
+                                output_setting,
                             },
                             info,
                         )) => {
                             let pos = self.surface_pos();
-
-                            let mut output = pos.and_then(|p| self.units[p].wl_output.as_ref());
 
                             if self.last_wloutput.is_none()
                                 && self.outputs.len() > self.last_unit_index
@@ -2445,9 +2429,19 @@ impl<T: 'static> WindowState<T> {
                                     Some(self.outputs[self.last_unit_index].1.clone());
                             }
 
-                            if use_last_output {
-                                output = self.last_wloutput.as_ref();
-                            }
+                            let output = match output_setting {
+                                events::LayerOutputSetting::None => {
+                                    pos.and_then(|p| self.units[p].wl_output.as_ref()).cloned()
+                                }
+                                events::LayerOutputSetting::FollowLastOutput => {
+                                    self.last_wloutput.clone()
+                                }
+                                events::LayerOutputSetting::ChosenOutput(output) => self
+                                    .xdg_info_cache
+                                    .iter()
+                                    .find(|(_, xdg_output_info)| xdg_output_info.name == output)
+                                    .map(|(output, _)| output.clone()),
+                            };
 
                             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                             let layer_shell = globals
@@ -2455,7 +2449,7 @@ impl<T: 'static> WindowState<T> {
                                 .unwrap();
                             let layer = layer_shell.get_layer_surface(
                                 &wl_surface,
-                                output,
+                                output.as_ref(),
                                 layer,
                                 self.namespace.clone(),
                                 &qh,
@@ -2509,7 +2503,7 @@ impl<T: 'static> WindowState<T> {
                                 fractional_scale,
                                 viewport,
                                 becreated: true,
-                                wl_output: output.cloned(),
+                                wl_output: output,
                                 binding: info,
                                 scale: 120,
                             });

@@ -6,7 +6,7 @@ members = [
   "iced_layershell_macros",
   "iced_sessionlock",
   "iced_sessionlock_macros",
-  "starcolorkeyboard",
+  "iced_wayland_subscriber",
   "sessionlockev",
   "waycrate_xkbkeycode",
   "iced_examples/*",
@@ -28,6 +28,7 @@ readme = "README.md"
 [workspace.dependencies]
 layershellev = { version = "0.9.7", path = "./layershellev" }
 sessionlockev = { version = "0.9.7", path = "./sessionlockev" }
+iced_wayland_subscriber = { version = "0.9.7", path = "./iced_wayland_subscriber" }
 
 iced_layershell = { version = "0.9.7", path = "./iced_layershell" }
 iced_layershell_macros = { version = "0.9.7", path = "./iced_layershell_macros" }
@@ -79,7 +80,7 @@ bitflags = "2.6.0"
 log = "0.4.22"
 
 xkbcommon-dl = "0.4.2"
-smol_str = "0.2.2" #NOTE: follow iced
+smol_str = "0.2.2"     #NOTE: follow iced
 memmap2 = "0.9.5"
 
 tracing = "0.1.40"

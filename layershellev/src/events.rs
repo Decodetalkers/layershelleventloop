@@ -68,8 +68,16 @@ pub enum LayerEvent<'a, T, Message> {
     UserEvent(Message),
 }
 
+/// This allow the new layershell can be selected on target output
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LayerOutputSetting {
+    ChosenOutput(String),
+    FollowLastOutput,
+    None,
+}
+
 /// layershell settings to create a new layershell surface
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewLayerShellSettings {
     /// the size of the layershell, optional.
     pub size: Option<(u32, u32)>,
@@ -81,8 +89,8 @@ pub struct NewLayerShellSettings {
     /// follow the last output of the activated surface, used to create some thing like mako, who
     /// will show on the same window, only when the notifications is cleared, it will change the
     /// wl_output.
-    pub use_last_output: bool,
     pub events_transparent: bool,
+    pub output_setting: LayerOutputSetting,
 }
 
 /// be used to create a new popup
@@ -105,8 +113,8 @@ impl Default for NewLayerShellSettings {
             size: None,
             margin: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
-            use_last_output: false,
             events_transparent: false,
+            output_setting: LayerOutputSetting::None,
         }
     }
 }

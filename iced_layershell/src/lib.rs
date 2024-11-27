@@ -16,6 +16,7 @@ pub mod reexport {
     pub use layershellev::reexport::Anchor;
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
+    pub use layershellev::LayerOutputSetting;
     pub use layershellev::NewLayerShellSettings;
 }
 

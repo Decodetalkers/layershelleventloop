@@ -8,7 +8,9 @@ use iced_layershell::actions::{
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::Action;
 
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
+use iced_layershell::reexport::{
+    Anchor, KeyboardInteractivity, Layer, LayerOutputSetting, NewLayerShellSettings,
+};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::MultiApplication;
 use zbus::{connection, interface};
@@ -53,7 +55,7 @@ impl TryInto<LaLaShellIdAction> for Message {
                         layer: Layer::Top,
                         margin: Some((100, 100, 100, 100)),
                         keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                        use_last_output: false,
+                        output_setting: LayerOutputSetting::None,
                         ..Default::default()
                     },
                     (),
