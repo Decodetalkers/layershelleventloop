@@ -500,11 +500,7 @@ async fn run_instance<A, E, C>(
             IcedLayerEvent::Window(event) => {
                 state.update(&event);
 
-                if let Some(event) = conversion::window_event(
-                    &event,
-                    state.application_scale_factor(),
-                    state.modifiers(),
-                ) {
+                if let Some(event) = conversion::window_event(&event, state.modifiers()) {
                     events.push(event);
                 }
             }
@@ -728,7 +724,7 @@ pub(crate) fn run_action<A, C>(
                 let _ = channel.send(window::Screenshot::new(
                     bytes,
                     state.physical_size(),
-                    state.viewport().scale_factor(),
+                    state.scale_factor(),
                 ));
             }
             _ => {}

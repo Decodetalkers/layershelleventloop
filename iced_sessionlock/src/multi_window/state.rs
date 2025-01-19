@@ -16,7 +16,6 @@ where
     id: window::Id,
     application_scale_factor: f64,
     wayland_scale_factor: f64,
-    real_window_size: Size<u32>,
     viewport: Viewport,
     viewport_version: usize,
     theme: A::Theme,
@@ -41,63 +40,40 @@ where
         let theme = application.theme();
         let appearance = application.style(&theme);
 
-        let real_window_size = Size::new(width, height);
-        let viewport = Viewport::with_physical_size(
-            real_window_size,
-            wayland_scale_factor * application_scale_factor,
-        );
+        let logical_size = Size::new(width, height);
+        let viewport = viewport(logical_size, wayland_scale_factor, application_scale_factor);
+
+        let wpviewport = window
+            .viewport
+            .clone()
+            .expect("iced_layershell need viewport support to better wayland hidpi");
+        set_wpviewport_destination(&wpviewport, logical_size);
         Self {
             id,
             application_scale_factor,
             wayland_scale_factor,
-            real_window_size,
             viewport,
             viewport_version: 0,
             theme,
             appearance,
             mouse_position: None,
             modifiers: ModifiersState::default(),
-            wpviewport: window
-                .viewport
-                .clone()
-                .expect("iced_sessionlock need wpviewport support to better wayland dpi"),
+            wpviewport,
         }
     }
     pub fn modifiers(&self) -> ModifiersState {
         self.modifiers
     }
 
-    pub fn current_wayland_scale(&self) -> f64 {
-        self.wayland_scale_factor
-    }
-
     pub fn update_view_port(&mut self, width: u32, height: u32, scale: f64) {
-        let real_window_size = Size::new(width, height);
-        if self.real_window_size == real_window_size && self.wayland_scale_factor == scale {
+        let logical_size = Size::new(width, height);
+        if self.logical_size_u32() == logical_size && self.wayland_scale_factor == scale {
             return;
         }
-        self.real_window_size = real_window_size;
         self.wayland_scale_factor = scale;
-        self.viewport = Viewport::with_physical_size(
-            self.adjusted_physical_size(),
-            self.current_wayland_scale() * self.application_scale_factor,
-        );
-        let logical_size = self.viewport.logical_size();
-
-        self.wpviewport.set_destination(
-            logical_size.width.ceil() as i32,
-            logical_size.height.ceil() as i32,
-        );
-        self.viewport_version = self.viewport_version.wrapping_add(1);
+        self.resize_viewport(logical_size);
     }
 
-    fn adjusted_physical_size(&self) -> Size<u32> {
-        let mut size = self.real_window_size;
-        let factor = self.wayland_scale_factor * self.application_scale_factor;
-        size.width = (size.width as f64 * factor).ceil() as u32;
-        size.height = (size.height as f64 * factor).ceil() as u32;
-        size
-    }
     pub fn viewport(&self) -> &Viewport {
         &self.viewport
     }
@@ -111,7 +87,7 @@ where
     }
 
     pub fn scale_factor(&self) -> f64 {
-        1.
+        self.viewport.scale_factor()
     }
 
     pub fn text_color(&self) -> Color {
@@ -151,18 +127,7 @@ where
                 scale_u32: _,
             } => {
                 self.wayland_scale_factor = *scale_float;
-                self.viewport = Viewport::with_physical_size(
-                    self.adjusted_physical_size(),
-                    self.application_scale_factor * scale_float,
-                );
-
-                self.viewport_version = self.viewport_version.wrapping_add(1);
-                let logical_size = self.viewport.logical_size();
-
-                self.wpviewport.set_destination(
-                    logical_size.width.ceil() as i32,
-                    logical_size.height.ceil() as i32,
-                );
+                self.resize_viewport(self.logical_size_u32());
             }
             _ => {}
         }
@@ -172,13 +137,52 @@ where
         let new_scale_factor = application.scale_factor(self.id);
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;
-            self.viewport = Viewport::with_physical_size(
-                self.adjusted_physical_size(),
-                self.current_wayland_scale() * new_scale_factor,
-            );
-            self.viewport_version = self.viewport_version.wrapping_add(1);
+            self.resize_viewport(self.logical_size_u32());
         }
         self.theme = application.theme();
         self.appearance = application.style(&self.theme);
+    }
+
+    fn resize_viewport(&mut self, logical_size: Size<u32>) {
+        self.viewport = viewport(
+            logical_size,
+            self.wayland_scale_factor,
+            self.application_scale_factor,
+        );
+
+        self.viewport_version = self.viewport_version.wrapping_add(1);
+
+        set_wpviewport_destination(&self.wpviewport, self.logical_size_u32());
+    }
+
+    fn logical_size_u32(&self) -> Size<u32> {
+        // physical_size = (orig_logical_size as f64 * factor).ceil()
+        // logical_sizea = physical_size as f64 / factor as f32
+        // logical_size >= orig_logical_size
+        let logical_size = self.viewport.logical_size();
+        Size::new(
+            logical_size.width.floor() as u32,
+            logical_size.height.floor() as u32,
+        )
+    }
+}
+
+fn viewport(
+    logical_size: Size<u32>,
+    wayland_scale_factor: f64,
+    application_scale_factor: f64,
+) -> Viewport {
+    let factor = wayland_scale_factor * application_scale_factor;
+    let physical_size = Size::new(
+        (logical_size.width as f64 * factor).ceil() as u32,
+        (logical_size.height as f64 * factor).ceil() as u32,
+    );
+    Viewport::with_physical_size(physical_size, factor)
+}
+
+fn set_wpviewport_destination(wpviewport: &WpViewport, logical_size: Size<u32>) {
+    if logical_size.width != 0 && logical_size.height != 0 {
+        // set_destination(0, 0) will panic
+        wpviewport.set_destination(logical_size.width as i32, logical_size.height as i32);
     }
 }

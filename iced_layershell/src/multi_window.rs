@@ -682,11 +682,7 @@ async fn run_instance<A, E, C>(
                     continue;
                 };
                 // NOTE: just follow the other events
-                if let Some(event) = conversion::window_event(
-                    &event,
-                    window.state.scale_factor(),
-                    window.state.modifiers(),
-                ) {
+                if let Some(event) = conversion::window_event(&event, window.state.modifiers()) {
                     events.push((None, event));
                 }
             }
@@ -695,11 +691,7 @@ async fn run_instance<A, E, C>(
                     continue;
                 };
                 window.state.update(&event);
-                if let Some(event) = conversion::window_event(
-                    &event,
-                    window.state.scale_factor(),
-                    window.state.modifiers(),
-                ) {
+                if let Some(event) = conversion::window_event(&event, window.state.modifiers()) {
                     events.push((Some(id), event));
                 }
             }
@@ -1087,7 +1079,7 @@ pub(crate) fn run_action<A, C>(
                 let _ = channel.send(window::Screenshot::new(
                     bytes,
                     window.state.physical_size(),
-                    window.state.viewport().scale_factor(),
+                    window.state.scale_factor(),
                 ));
             }
             _ => {}
